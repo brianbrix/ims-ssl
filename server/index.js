@@ -83,11 +83,20 @@ app.post("/api/lessons", requireAdmin, upload.single("file"), async (req, res) =
 
   const title = (req.body.title || "").trim() || req.file.originalname;
   const period = (req.body.period || "").trim();
+  const quarter = (req.body.quarter || "").trim();
+  const yearValue = (req.body.year || "").trim();
+  const year = yearValue ? Number(yearValue) : null;
+
+  if (yearValue && Number.isNaN(year)) {
+    return res.status(400).json({ error: "Year must be a number." });
+  }
 
   const lesson = {
     id: path.parse(req.file.filename).name,
     title,
     period,
+    year,
+    quarter,
     originalName: req.file.originalname,
     fileName: req.file.filename,
     uploadedAt: new Date().toISOString(),

@@ -1,0 +1,21 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sabbath-school-reader
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3001
+      STORAGE_ROOT: /data
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-change-me}
+      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-}
+    volumes:
+      - lesson_data:/data
+
+volumes:
+  lesson_data:

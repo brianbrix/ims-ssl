@@ -6,6 +6,8 @@ export function UploadPage() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [period, setPeriod] = useState("");
+  const [year, setYear] = useState("");
+  const [quarter, setQuarter] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [token, setToken] = useState(getAdminToken());
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -22,7 +24,7 @@ export function UploadPage() {
     setIsSubmitting(true);
     setError(null);
     try {
-      const lesson = await uploadLesson(file, title, period);
+      const lesson = await uploadLesson(file, title, period, year, quarter);
       navigate(`/lesson/${lesson.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
@@ -62,6 +64,26 @@ export function UploadPage() {
           value={period}
           onChange={(e) => setPeriod(e.target.value)}
           placeholder="e.g. Second Half 2026"
+        />
+      </label>
+
+      <label>
+        Year
+        <input
+          type="number"
+          value={year}
+          onChange={(e) => setYear(e.target.value)}
+          placeholder="e.g. 2026"
+        />
+      </label>
+
+      <label>
+        Quarter
+        <input
+          type="text"
+          value={quarter}
+          onChange={(e) => setQuarter(e.target.value)}
+          placeholder="e.g. 1 & 2 quarter"
         />
       </label>
 

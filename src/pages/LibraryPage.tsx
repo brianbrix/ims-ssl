@@ -272,6 +272,10 @@ function LessonThumbnail({ lessonId, uploadedAt, title }: LessonThumbnailProps) 
 }
 
 function extractYear(lesson: Lesson): number | null {
+  if (typeof lesson.year === "number" && Number.isFinite(lesson.year)) {
+    return lesson.year;
+  }
+
   const periodMatch = lesson.period?.match(/\b(19|20)\d{2}\b/);
   if (periodMatch) return Number(periodMatch[0]);
 
@@ -345,7 +349,11 @@ export function LibraryPage() {
               title={lesson.title}
             />
             <h2>{lesson.title}</h2>
-            {lesson.period && <p className="library-period">{lesson.period}</p>}
+            {(lesson.period || lesson.quarter || lesson.year) && (
+              <p className="library-period">
+                {[lesson.year, lesson.quarter || lesson.period].filter(Boolean).join(" • ")}
+              </p>
+            )}
             <p className="library-date">
               Uploaded {new Date(lesson.uploadedAt).toLocaleDateString()}
             </p>

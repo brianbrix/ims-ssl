@@ -47,6 +47,77 @@ After deploy is complete:
 2. Visit `/api/lessons` to confirm API health.
 3. Upload a PDF and refresh to confirm persistence.
 
+## Bulk Import From 4truth.ca
+
+Use the import script when you are hosting the app on your VPS and want to load the archived lesson PDFs from the 4truth.ca page.
+
+### Environment
+
+Set these before running the script:
+
+```bash
+API_BASE_URL=https://your-vps.example.com
+ADMIN_TOKEN=your-admin-passcode
+```
+
+Optional:
+
+```bash
+SOURCE_URL=https://www.4truth.ca/downloads/sabbath-school-lessons/
+DRY_RUN=1
+```
+
+### Run
+
+```bash
+bash scripts/import-4truth-lessons.sh
+```
+
+The script downloads each PDF from the 4truth page and posts it to your VPS API with `title`, `period`, `year`, and `quarter` fields.
+
+### Lesson fields
+
+The app now stores:
+
+1. `year`
+2. `quarter`
+3. `period` for backward compatibility and display
+
+## Docker Deployment (VPS)
+
+### 1. Set environment values
+
+Create a `.env` file next to `docker-compose.yml`:
+
+```bash
+ADMIN_TOKEN=replace-with-strong-token
+CORS_ORIGIN=https://your-frontend-domain.com
+PUBLIC_API_BASE_URL=https://your-api-domain.com
+```
+
+### 2. Build and start
+
+```bash
+docker compose up -d --build
+```
+
+The API and frontend are served from the same container on port `3001`.
+
+### 3. Persistent data
+
+Compose uses the named volume `lesson_data` mounted at `/data`.
+That stores:
+
+1. SQLite DB: `/data/data/lessons.db`
+2. Uploaded PDFs: `/data/uploads`
+
+### 4. Run bulk import in Docker
+
+After the app is running, run:
+
+```bash
+docker compose exec app bash -lc 'API_BASE_URL=http://localhost:3001 ADMIN_TOKEN="$ADMIN_TOKEN" bash scripts/import-4truth-lessons.sh'
+```
 ## Local Development
 
 1. Install dependencies

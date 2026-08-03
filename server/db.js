@@ -19,11 +19,22 @@ db.exec(`
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
     period TEXT NOT NULL DEFAULT '',
+    year INTEGER,
+    quarter TEXT NOT NULL DEFAULT '',
     originalName TEXT NOT NULL,
     fileName TEXT NOT NULL,
     uploadedAt TEXT NOT NULL
   )
 `);
+
+const tableColumns = db.prepare("PRAGMA table_info(lessons)").all();
+const columnNames = new Set(tableColumns.map((column) => column.name));
+if (!columnNames.has("year")) {
+  db.exec("ALTER TABLE lessons ADD COLUMN year INTEGER");
+}
+if (!columnNames.has("quarter")) {
+  db.exec("ALTER TABLE lessons ADD COLUMN quarter TEXT NOT NULL DEFAULT ''");
+}
 
 // One-time migration from the legacy JSON store, if present and DB is empty.
 const existingCount = db.prepare("SELECT COUNT(*) AS count FROM lessons").get().count;
@@ -31,11 +42,17 @@ if (existingCount === 0 && existsSync(LEGACY_JSON_FILE)) {
   try {
     const legacyLessons = JSON.parse(readFileSync(LEGACY_JSON_FILE, "utf-8"));
     const insert = db.prepare(
-      `INSERT OR IGNORE INTO lessons (id, title, period, originalName, fileName, uploadedAt)
-       VALUES (@id, @title, @period, @originalName, @fileName, @uploadedAt)`
+      `INSERT OR IGNORE INTO lessons (id, title, period, year, quarter, originalName, fileName, uploadedAt)
+       VALUES (@id, @title, @period, @year, @quarter, @originalName, @fileName, @uploadedAt)`
     );
     const insertMany = db.transaction((lessons) => {
-      for (const lesson of lessons) insert.run(lesson);
+      for (const lesson of lessons) {
+        insert.run({
+          ...lesson,
+          year: lesson.year ?? null,
+          quarter: lesson.quarter ?? "",
+        });
+      }
     });
     insertMany(legacyLessons);
     console.log(`Migrated ${legacyLessons.length} lesson(s) from lessons.json into SQLite.`);
@@ -54,8 +71,8 @@ export function getLessonById(id) {
 
 export function insertLesson(lesson) {
   db.prepare(
-    `INSERT INTO lessons (id, title, period, originalName, fileName, uploadedAt)
-     VALUES (@id, @title, @period, @originalName, @fileName, @uploadedAt)`
+    `INSERT INTO lessons (id, title, period, year, quarter, originalName, fileName, uploadedAt)
+     VALUES (@id, @title, @period, @year, @quarter, @originalName, @fileName, @uploadedAt)`
   ).run(lesson);
   return lesson;
 }

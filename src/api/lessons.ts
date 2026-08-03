@@ -2,6 +2,8 @@ export interface Lesson {
   id: string;
   title: string;
   period: string;
+  year: number | null;
+  quarter: string;
   originalName: string;
   fileName: string;
   uploadedAt: string;
@@ -47,12 +49,16 @@ export async function getLesson(id: string): Promise<Lesson> {
 export async function uploadLesson(
   file: File,
   title: string,
-  period: string
+  period: string,
+  year: string,
+  quarter: string
 ): Promise<Lesson> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("title", title);
   formData.append("period", period);
+  formData.append("year", year);
+  formData.append("quarter", quarter);
 
   const response = await fetch(apiPath("/api/lessons"), {
     method: "POST",

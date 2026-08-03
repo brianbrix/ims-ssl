@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log*
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+dist
+server/uploads
+server/data
+*.local
