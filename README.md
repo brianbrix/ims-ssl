@@ -2,6 +2,51 @@
 
 Upload and read Sabbath School PDF lessons with an IMS-branded web UI.
 
+## Deploy On Wasmer (GitHub)
+
+This repository now supports single-process production hosting on Wasmer:
+the Node server serves both API routes and the built frontend.
+
+### 1. Push latest code
+
+Make sure these files are in your repo root:
+
+1. `Anybuild`
+2. `app.yaml`
+
+### 2. Create app from GitHub
+
+Open your link:
+
+https://wasmer.io/apps/create?github=brianbrix/ims-ssl
+
+Then continue through the wizard and pick the `main` branch.
+
+### 3. Set required environment variables in Wasmer
+
+In the Wasmer app dashboard, set:
+
+1. `ADMIN_TOKEN` = a strong secret passcode
+2. `STORAGE_ROOT` = `/persistent`
+3. `CORS_ORIGIN` = your frontend origin(s) (or `*` while testing)
+
+Optional:
+
+1. `PUBLIC_API_BASE_URL` if you need fixed absolute API URLs in responses.
+
+### 4. Persistent storage
+
+`app.yaml` mounts volume `lesson-storage` at `/persistent`.
+With `STORAGE_ROOT=/persistent`, uploads and SQLite data persist between deploys.
+
+### 5. Deploy and test
+
+After deploy is complete:
+
+1. Open the Wasmer app URL.
+2. Visit `/api/lessons` to confirm API health.
+3. Upload a PDF and refresh to confirm persistence.
+
 ## Local Development
 
 1. Install dependencies

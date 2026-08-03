@@ -9,7 +9,11 @@ import { fileURLToPath } from "node:url";
 import { getAllLessons, getLessonById, insertLesson, deleteLessonById } from "./db.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const UPLOADS_DIR = path.join(__dirname, "uploads");
+const STORAGE_ROOT = process.env.STORAGE_ROOT ? path.resolve(process.env.STORAGE_ROOT) : "";
+const UPLOADS_DIR = STORAGE_ROOT
+  ? path.join(STORAGE_ROOT, "uploads")
+  : path.join(__dirname, "uploads");
+const FRONTEND_DIST_DIR = path.resolve(__dirname, "..", "dist");
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "sabbath-admin";
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || "0.0.0.0";
@@ -124,10 +128,20 @@ app.use((err, _req, res, _next) => {
   res.status(400).json({ error: err.message || "Unexpected error." });
 });
 
+if (existsSync(FRONTEND_DIST_DIR)) {
+  app.use(express.static(FRONTEND_DIST_DIR));
+  app.get(/^\/(?!api(?:\/|$)).*/, (_req, res) => {
+    res.sendFile(path.join(FRONTEND_DIST_DIR, "index.html"));
+  });
+}
+
 app.listen(PORT, HOST, () => {
-  console.log(`Sabbath School Reader API listening on http://${HOST}:${PORT}`);
+  console.log(`Sabbath School Reader listening on http://${HOST}:${PORT}`);
   if (PUBLIC_API_BASE_URL) {
     console.log(`Using public API base URL ${PUBLIC_API_BASE_URL}`);
+  }
+  if (STORAGE_ROOT) {
+    console.log(`Using persistent storage root ${STORAGE_ROOT}`);
   }
   if (!process.env.ADMIN_TOKEN) {
     console.log(`Using default admin passcode "${ADMIN_TOKEN}" (set ADMIN_TOKEN env var to change it).`);

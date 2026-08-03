@@ -1,0 +1,23 @@
+kind: wasmer.io/App.v0
+package: .
+
+env:
+  HOST: 0.0.0.0
+  PORT: "8080"
+  CORS_ORIGIN: "*"
+  STORAGE_ROOT: /persistent
+
+volumes:
+  - name: lesson-storage
+    mount: /persistent
+
+health_checks:
+  - http:
+      method: get
+      path: /api/lessons
+      interval: 30s
+      timeout: 10s
+      unhealthy_threshold: 2
+      healthy_threshold: 1
+      expected_status_codes:
+        - 200

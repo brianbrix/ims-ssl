@@ -2,9 +2,12 @@ import Database from "better-sqlite3";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-const DATA_DIR = path.join(import.meta.dirname, "data");
+const STORAGE_ROOT = process.env.STORAGE_ROOT ? path.resolve(process.env.STORAGE_ROOT) : "";
+const DATA_DIR = STORAGE_ROOT ? path.join(STORAGE_ROOT, "data") : path.join(import.meta.dirname, "data");
 const DB_FILE = path.join(DATA_DIR, "lessons.db");
-const LEGACY_JSON_FILE = path.join(DATA_DIR, "lessons.json");
+const LEGACY_JSON_FILE = STORAGE_ROOT
+  ? path.join(import.meta.dirname, "data", "lessons.json")
+  : path.join(DATA_DIR, "lessons.json");
 
 if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
 
