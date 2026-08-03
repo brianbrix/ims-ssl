@@ -6,11 +6,11 @@ load("//anybuild/tools:node.bzl", "node_build", "node_config", "node_serve")
 config = node_config(
     schema = 1,
     commands = {
-        "start": "npm start",
+        "start": "bun run start",
     },
-    node_package_manager = "npm",
+    node_package_manager = "bun",
     node_server = "node",
-    node_build_command = "npm run build",
+    node_build_command = "bun run build",
     node_version = "24",
     node_install_requires_all_files = True,
 )

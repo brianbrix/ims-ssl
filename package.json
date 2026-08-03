@@ -8,12 +8,15 @@
     "server": "node server/index.js",
     "start": "node server/index.js",
     "build": "tsc -b && vite build",
-    "postinstall": "npm --prefix server install",
     "lint": "oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
+    "better-sqlite3": "^13.0.2",
+    "cors": "^2.8.6",
     "pdfjs-dist": "^6.2.108",
+    "express": "^5.2.1",
+    "multer": "^2.2.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.2"
