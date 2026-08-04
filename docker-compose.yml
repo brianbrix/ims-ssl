@@ -31,12 +31,12 @@ services:
     volumes:
       - lesson_data:/data
     networks:
-      - traefik
+      - traefik_network
 
 volumes:
   lesson_data:
 
 networks:
-  traefik:
+  traefik_network:
     external: true
-    name: ${TRAEFIK_NETWORK:-traefik}
+    name: ${TRAEFIK_NETWORK:-hotspot_default}
