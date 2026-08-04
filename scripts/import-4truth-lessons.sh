@@ -96,28 +96,28 @@ def normalize_url(url: str) -> str:
 
 for href, inner_html in anchor_pattern.findall(source_html):
   href = html.unescape(href).strip().replace("\r", "").replace("\n", "")
-    raw_text = html.unescape(re.sub(r'<[^>]+>', ' ', inner_html))
-    normalized_text = re.sub(r'\s+', ' ', raw_text).strip()
-    year_match = re.search(r'(19|20)\d{2}', normalized_text)
-    quarter_match = re.search(r'(1\s*&\s*2|3\s*&\s*4)\s*quarter', normalized_text, re.I)
+  raw_text = html.unescape(re.sub(r'<[^>]+>', ' ', inner_html))
+  normalized_text = re.sub(r'\s+', ' ', raw_text).strip()
+  year_match = re.search(r'(19|20)\d{2}', normalized_text)
+  quarter_match = re.search(r'(1\s*&\s*2|3\s*&\s*4)\s*quarter', normalized_text, re.I)
 
-    if not year_match:
-        continue
+  if not year_match:
+    continue
 
-    year = int(year_match.group(0))
-    quarter = ''
-    if quarter_match:
-        quarter_text = quarter_match.group(1)
-        quarter = re.sub(r'\s+', ' ', quarter_text).strip()
-        quarter = f'{quarter} quarter'
+  year = int(year_match.group(0))
+  quarter = ''
+  if quarter_match:
+    quarter_text = quarter_match.group(1)
+    quarter = re.sub(r'\s+', ' ', quarter_text).strip()
+    quarter = f'{quarter} quarter'
 
-    period = f'{period_prefix} {year}'.strip() if period_prefix else normalized_text
-    source = normalize_url(urljoin(source_url, href))
-    key = (year, quarter, source)
-    if key in seen:
-        continue
-    seen.add(key)
-    lessons.append((year, quarter, title_fallback, period, source))
+  period = f'{period_prefix} {year}'.strip() if period_prefix else normalized_text
+  source = normalize_url(urljoin(source_url, href))
+  key = (year, quarter, source)
+  if key in seen:
+    continue
+  seen.add(key)
+  lessons.append((year, quarter, title_fallback, period, source))
 
 lessons.sort(key=lambda item: (-item[0], item[1]))
 for year, quarter, title, period, source in lessons:
