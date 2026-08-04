@@ -80,10 +80,21 @@ export function VersePopover({ reference, x, y, onClose }: VersePopoverProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [translation, setTranslation] = useState(getInitialTranslation);
+  const [isMobileView, setIsMobileView] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(TRANSLATION_KEY, translation);
   }, [translation]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const mediaQuery = window.matchMedia("(max-width: 980px)");
+    setIsMobileView(mediaQuery.matches);
+    const onChange = (event: MediaQueryListEvent) => setIsMobileView(event.matches);
+    mediaQuery.addEventListener("change", onChange);
+    return () => mediaQuery.removeEventListener("change", onChange);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,8 +119,11 @@ export function VersePopover({ reference, x, y, onClose }: VersePopoverProps) {
     };
   }, [reference, translation]);
 
-  return (
-    <div className="verse-popover" style={{ left: x, top: y }}>
+  const popoverContent = (
+    <div
+      className={`verse-popover ${isMobileView ? "verse-popover-mobile" : ""}`}
+      style={isMobileView ? undefined : { left: x, top: y }}
+    >
       <div className="verse-popover-header">
         <strong>{reference}</strong>
         <button onClick={onClose} aria-label="Close">
@@ -153,4 +167,16 @@ export function VersePopover({ reference, x, y, onClose }: VersePopoverProps) {
       </a>
     </div>
   );
+
+  if (isMobileView) {
+    return (
+      <div className="verse-popover-overlay" onClick={onClose} role="presentation">
+        <div onClick={(event) => event.stopPropagation()} role="presentation">
+          {popoverContent}
+        </div>
+      </div>
+    );
+  }
+
+  return popoverContent;
 }

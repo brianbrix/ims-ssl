@@ -25,6 +25,7 @@ export function LessonViewerPage() {
   const [highContrast, setHighContrast] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobileControlsOpen, setIsMobileControlsOpen] = useState(true);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [toc, setToc] = useState<TocEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,12 +85,14 @@ export function LessonViewerPage() {
 
     const mediaQuery = window.matchMedia("(min-width: 981px)");
     const applySidebarMode = (isDesktop: boolean) => {
+      setIsMobileViewport(!isDesktop);
       if (isDesktop) {
         setIsSidebarOpen(true);
         setIsMobileControlsOpen(true);
       } else {
         setIsSidebarOpen(false);
         setIsMobileControlsOpen(false);
+        setIsFitWidth(true);
       }
     };
 
@@ -145,6 +148,12 @@ export function LessonViewerPage() {
       setIsSidebarOpen(false);
     }
   }
+
+  useEffect(() => {
+    if (isMobileViewport && !isFitWidth) {
+      setIsFitWidth(true);
+    }
+  }, [isMobileViewport, isFitWidth]);
 
   useEffect(() => {
     if (!pdf || !isFitWidth) return;
@@ -300,7 +309,10 @@ export function LessonViewerPage() {
 
           <button
             className={isFitWidth ? "toolbar-toggle-on" : undefined}
-            onClick={() => setIsFitWidth((value) => !value)}
+            onClick={() => {
+              if (!isMobileViewport) setIsFitWidth((value) => !value);
+            }}
+            disabled={isMobileViewport}
           >
             Fit width
           </button>
