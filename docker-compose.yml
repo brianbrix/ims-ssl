@@ -7,6 +7,20 @@ services:
     restart: unless-stopped
     ports:
       - "3001:3001"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sabbath-school-reader.rule=Host(`${APP_HOST:-change-me}`)"
+      - "traefik.http.routers.sabbath-school-reader.entrypoints=websecure"
+      - "traefik.http.routers.sabbath-school-reader.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
+      - "traefik.http.routers.sabbath-school-reader.middlewares=sabbath-school-reader-headers"
+      - "traefik.http.services.sabbath-school-reader.loadbalancer.server.port=3001"
+      - "traefik.http.middlewares.sabbath-school-reader-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.middlewares.sabbath-school-reader-headers.headers.customrequestheaders.X-Forwarded-Port=443"
+      - "traefik.http.middlewares.sabbath-school-reader-headers.headers.customrequestheaders.X-Forwarded-Host=${APP_HOST:-change-me}"
+      - "traefik.http.middlewares.sabbath-school-reader-headers.headers.stsSeconds=31536000"
+      - "traefik.http.middlewares.sabbath-school-reader-headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.sabbath-school-reader-headers.headers.stsPreload=true"
+      - "traefik.http.middlewares.sabbath-school-reader-headers.headers.forceSTSHeader=true"
     environment:
       HOST: 0.0.0.0
       PORT: 3001
@@ -16,6 +30,13 @@ services:
       PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-}
     volumes:
       - lesson_data:/data
+    networks:
+      - traefik
 
 volumes:
   lesson_data:
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik}
