@@ -24,11 +24,13 @@ export function LessonViewerPage() {
   const [isFitWidth, setIsFitWidth] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMobileControlsOpen, setIsMobileControlsOpen] = useState(true);
   const [toc, setToc] = useState<TocEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
   const pageContainerRef = useRef<HTMLDivElement | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -83,8 +85,10 @@ export function LessonViewerPage() {
     const applySidebarMode = (isDesktop: boolean) => {
       if (isDesktop) {
         setIsSidebarOpen(true);
+        setIsMobileControlsOpen(true);
       } else {
         setIsSidebarOpen(false);
+        setIsMobileControlsOpen(false);
       }
     };
 
@@ -190,6 +194,26 @@ export function LessonViewerPage() {
   if (error) return <p className="page-message error">{error}</p>;
   if (!pdf || !lesson) return null;
 
+  function onPageTouchStart(event: React.TouchEvent<HTMLDivElement>) {
+    if (typeof window === "undefined" || window.innerWidth > 980) return;
+    touchStartYRef.current = event.touches[0]?.clientY ?? null;
+  }
+
+  function onPageTouchEnd(event: React.TouchEvent<HTMLDivElement>) {
+    if (typeof window === "undefined" || window.innerWidth > 980) return;
+    const startY = touchStartYRef.current;
+    const endY = event.changedTouches[0]?.clientY;
+    touchStartYRef.current = null;
+    if (startY === null || typeof endY !== "number") return;
+
+    const deltaY = endY - startY;
+    if (deltaY > 50) {
+      setIsMobileControlsOpen(true);
+    } else if (deltaY < -50) {
+      setIsMobileControlsOpen(false);
+    }
+  }
+
   return (
     <div className={`viewer-layout ${isSidebarOpen ? "sidebar-open" : ""}`}>
       <aside className="sidebar" id="lesson-outline">
@@ -204,7 +228,23 @@ export function LessonViewerPage() {
       </aside>
 
       <main className="viewer-main">
-        <div className="toolbar">
+        <button
+          className="mobile-controls-handle"
+          type="button"
+          onClick={() => setIsMobileControlsOpen((value) => !value)}
+          aria-expanded={isMobileControlsOpen}
+          aria-controls="lesson-toolbar"
+        >
+          <span className="mobile-controls-icon" aria-hidden="true">
+            {isMobileControlsOpen ? "▴" : "▾"}
+          </span>
+          <span>{isMobileControlsOpen ? "Hide controls" : "Show controls"}</span>
+        </button>
+
+        <div
+          id="lesson-toolbar"
+          className={`toolbar ${isMobileControlsOpen ? "mobile-controls-open" : "mobile-controls-collapsed"}`}
+        >
           <button
             className={`sidebar-toggle ${isSidebarOpen ? "toolbar-toggle-on" : ""}`}
             onClick={() => setIsSidebarOpen((value) => !value)}
@@ -286,7 +326,12 @@ export function LessonViewerPage() {
 
         </div>
 
-        <div ref={pageContainerRef} className={`page-container ${highContrast ? "pdf-high-contrast" : ""}`}>
+        <div
+          ref={pageContainerRef}
+          className={`page-container ${highContrast ? "pdf-high-contrast" : ""}`}
+          onTouchStart={onPageTouchStart}
+          onTouchEnd={onPageTouchEnd}
+        >
           <div className="page-stack">
             <Suspense fallback={<p className="page-message">Rendering page…</p>}>
               <PdfPage pdf={pdf} pageNumber={currentPage} scale={scale} />
