@@ -30,6 +30,7 @@ export function LessonViewerPage() {
   const [error, setError] = useState<string | null>(null);
   const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
   const pageContainerRef = useRef<HTMLDivElement | null>(null);
+  const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -196,21 +197,40 @@ export function LessonViewerPage() {
 
   function onPageTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     if (typeof window === "undefined" || window.innerWidth > 980) return;
+    touchStartXRef.current = event.touches[0]?.clientX ?? null;
     touchStartYRef.current = event.touches[0]?.clientY ?? null;
   }
 
   function onPageTouchEnd(event: React.TouchEvent<HTMLDivElement>) {
     if (typeof window === "undefined" || window.innerWidth > 980) return;
+    const startX = touchStartXRef.current;
     const startY = touchStartYRef.current;
+    const endX = event.changedTouches[0]?.clientX;
     const endY = event.changedTouches[0]?.clientY;
+    touchStartXRef.current = null;
     touchStartYRef.current = null;
-    if (startY === null || typeof endY !== "number") return;
+    if (
+      startX === null ||
+      startY === null ||
+      typeof endX !== "number" ||
+      typeof endY !== "number"
+    ) {
+      return;
+    }
 
+    const deltaX = endX - startX;
     const deltaY = endY - startY;
-    if (deltaY > 50) {
-      setIsMobileControlsOpen(true);
-    } else if (deltaY < -50) {
-      setIsMobileControlsOpen(false);
+
+    const horizontalSwipeThreshold = 55;
+    const verticalTolerance = 40;
+
+    if (Math.abs(deltaX) < horizontalSwipeThreshold) return;
+    if (Math.abs(deltaY) > verticalTolerance) return;
+
+    if (deltaX < 0) {
+      goToPage(currentPage + 1);
+    } else {
+      goToPage(currentPage - 1);
     }
   }
 
