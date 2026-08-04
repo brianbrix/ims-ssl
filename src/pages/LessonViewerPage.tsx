@@ -29,6 +29,8 @@ export function LessonViewerPage() {
     let cancelled = false;
     setIsLoading(true);
     setError(null);
+    setPdf(null);
+    setToc([]);
 
     (async () => {
       try {
@@ -44,15 +46,21 @@ export function LessonViewerPage() {
 
         setPdf(doc);
         setCurrentPage(1);
+        setIsLoading(false);
 
-        const tocEntries = await buildToc(doc);
-        if (!cancelled) setToc(tocEntries);
+        // Build TOC in the background so first-page rendering is not blocked.
+        void buildToc(doc)
+          .then((tocEntries) => {
+            if (!cancelled) setToc(tocEntries);
+          })
+          .catch(() => {
+            if (!cancelled) setToc([]);
+          });
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Could not load lesson.");
+          setIsLoading(false);
         }
-      } finally {
-        if (!cancelled) setIsLoading(false);
       }
     })();
 

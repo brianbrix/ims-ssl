@@ -74,7 +74,7 @@ import html
 import re
 import sys
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import quote, urljoin, urlsplit, urlunsplit
 
 html_file = Path(sys.argv[1])
 source_url = sys.argv[2]
@@ -86,7 +86,16 @@ anchor_pattern = re.compile(r'<a\b[^>]*href=["\']([^"\']+\.pdf)["\'][^>]*>([\s\S
 lessons = []
 seen = set()
 
+
+def normalize_url(url: str) -> str:
+  split = urlsplit(url)
+  path = quote(split.path, safe="/%._-~!$&'()*+,;=:@")
+  query = quote(split.query, safe="%._-~!$&'()*+,;=:@/?")
+  fragment = quote(split.fragment, safe="%._-~!$&'()*+,;=:@/?")
+  return urlunsplit((split.scheme, split.netloc, path, query, fragment))
+
 for href, inner_html in anchor_pattern.findall(source_html):
+  href = html.unescape(href).strip().replace("\r", "").replace("\n", "")
     raw_text = html.unescape(re.sub(r'<[^>]+>', ' ', inner_html))
     normalized_text = re.sub(r'\s+', ' ', raw_text).strip()
     year_match = re.search(r'(19|20)\d{2}', normalized_text)
@@ -103,7 +112,7 @@ for href, inner_html in anchor_pattern.findall(source_html):
         quarter = f'{quarter} quarter'
 
     period = f'{period_prefix} {year}'.strip() if period_prefix else normalized_text
-    source = urljoin(source_url, href)
+    source = normalize_url(urljoin(source_url, href))
     key = (year, quarter, source)
     if key in seen:
         continue
@@ -162,10 +171,14 @@ while IFS=$'\t' read -r year quarter title period source_url; do
   safe_filename="${year}-${quarter:-quarter}.pdf"
   safe_filename="${safe_filename//[^A-Za-z0-9._-]/-}"
 
-  curl -fsSL \
+  if ! curl -fsSL \
     -H "user-agent: sabbath-school-reader-import/1.0" \
     "$source_url" \
-    -o "$pdf_file"
+    -o "$pdf_file"; then
+    echo "Skipping ${year} ${quarter:-quarter}: invalid or unreachable source URL (${source_url})." >&2
+    skipped_count=$((skipped_count + 1))
+    continue
+  fi
 
   response_file="$tmpdir/upload-response.json"
   http_status="$(curl -sS -o "$response_file" -w '%{http_code}' \
