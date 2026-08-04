@@ -3,6 +3,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import { pdfjsLib } from "../lib/pdfSetup";
 import { linkifyVerses } from "../lib/verses";
 import { VersePopover } from "./VersePopover";
+import "pdfjs-dist/web/pdf_viewer.css";
 
 interface PdfPageProps {
   pdf: PDFDocumentProxy;

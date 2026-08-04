@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { lessonFileUrl, listLessons, type Lesson } from "../api/lessons";
-import { pdfjsLib } from "../lib/pdfSetup";
 
 type SortOrder = "year-desc" | "year-asc";
 const THUMBNAIL_CACHE_DB_NAME = "lesson-thumb-cache";
@@ -228,11 +227,15 @@ function LessonThumbnail({ lessonId, uploadedAt, title }: LessonThumbnailProps) 
     if (thumbnailUrl || !isVisible) return;
 
     let cancelled = false;
+    let loadingTask: import("pdfjs-dist").PDFDocumentLoadingTask | null = null;
     setIsLoading(true);
-    const loadingTask = pdfjsLib.getDocument({ url: lessonFileUrl(lessonId) });
 
     (async () => {
       try {
+        const { pdfjsLib } = await import("../lib/pdfSetup");
+        if (cancelled) return;
+
+        loadingTask = pdfjsLib.getDocument({ url: lessonFileUrl(lessonId) });
         const pdf = await loadingTask.promise;
         if (cancelled) return;
 
@@ -268,7 +271,7 @@ function LessonThumbnail({ lessonId, uploadedAt, title }: LessonThumbnailProps) 
 
     return () => {
       cancelled = true;
-      loadingTask.destroy();
+      loadingTask?.destroy();
     };
   }, [cacheKey, isVisible, lessonId, thumbnailUrl]);
 
