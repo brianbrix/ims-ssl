@@ -8,6 +8,9 @@ import "./App.css";
 const LessonViewerPage = lazy(() => import("./pages/LessonViewerPage").then((module) => ({
   default: module.LessonViewerPage,
 })));
+const HowToUsePage = lazy(() => import("./pages/HowToUsePage").then((module) => ({
+  default: module.HowToUsePage,
+})));
 
 function App() {
   return (
@@ -23,6 +26,7 @@ function App() {
           <NavLink to="/" end>
             Library
           </NavLink>
+          <NavLink to="/how-to-use">How to use</NavLink>
           <NavLink to="/upload">Upload</NavLink>
         </nav>
       </header>
@@ -30,6 +34,14 @@ function App() {
       <div className="app-body">
         <Routes>
           <Route path="/" element={<LibraryPage />} />
+          <Route
+            path="/how-to-use"
+            element={(
+              <Suspense fallback={<p className="page-message">Loading help…</p>}>
+                <HowToUsePage />
+              </Suspense>
+            )}
+          />
           <Route path="/upload" element={<UploadPage />} />
           <Route
             path="/lesson/:id"

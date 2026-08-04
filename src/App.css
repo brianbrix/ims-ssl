@@ -225,6 +225,78 @@
   cursor: not-allowed;
 }
 
+.howto-page {
+  width: 100%;
+  min-height: 0;
+  overflow: auto;
+  padding: 1rem 1.1rem 1.5rem;
+  background:
+    radial-gradient(circle at 15% 5%, rgba(13, 79, 157, 0.12), transparent 40%),
+    radial-gradient(circle at 88% 0%, rgba(217, 178, 74, 0.18), transparent 35%),
+    #f8fbff;
+}
+
+.howto-hero {
+  max-width: 960px;
+  margin: 0 auto 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid #d8e4f7;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.howto-hero h2 {
+  margin: 0 0 0.35rem;
+  color: #123d72;
+  font-size: 1.35rem;
+}
+
+.howto-hero p {
+  margin: 0;
+  color: #52637c;
+}
+
+.howto-grid {
+  max-width: 960px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.howto-card {
+  border: 1px solid #d8e4f7;
+  border-radius: 12px;
+  background: #fff;
+  padding: 0.95rem 1rem;
+}
+
+.howto-card h3 {
+  margin: 0 0 0.5rem;
+  color: #103966;
+  font-size: 1.02rem;
+}
+
+.howto-card ul,
+.howto-card ol {
+  margin: 0;
+  padding-left: 1.15rem;
+  color: #253a54;
+}
+
+.howto-card li {
+  margin: 0 0 0.35rem;
+}
+
+.howto-back-link {
+  margin: 0.8rem 0 0;
+}
+
+.howto-back-link a {
+  color: #0d4f9d;
+  font-weight: 600;
+}
+
 .viewer-layout {
   flex: 1;
   display: flex;
@@ -321,6 +393,19 @@
 
   .library-card {
     padding: 0.65rem;
+  }
+
+  .howto-page {
+    padding: 0.8rem 0.75rem 1.15rem;
+  }
+
+  .howto-grid {
+    grid-template-columns: 1fr;
+    gap: 0.7rem;
+  }
+
+  .howto-hero {
+    padding: 0.85rem 0.9rem;
   }
 }
 
