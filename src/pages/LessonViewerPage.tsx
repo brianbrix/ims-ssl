@@ -38,16 +38,11 @@ export function LessonViewerPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobileControlsOpen, setIsMobileControlsOpen] = useState(true);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
-  const [pageTransition, setPageTransition] = useState<{
-    direction: "forward" | "backward";
-    token: number;
-  } | null>(null);
   const [toc, setToc] = useState<TocEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
   const pageContainerRef = useRef<HTMLDivElement | null>(null);
-  const pageTransitionTimeoutRef = useRef<number | null>(null);
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
 
@@ -112,10 +107,6 @@ export function LessonViewerPage() {
     return () => {
       cancelled = true;
       loadingTaskRef.current?.destroy();
-      if (pageTransitionTimeoutRef.current !== null) {
-        window.clearTimeout(pageTransitionTimeoutRef.current);
-        pageTransitionTimeoutRef.current = null;
-      }
     };
   }, [id]);
 
@@ -180,19 +171,6 @@ export function LessonViewerPage() {
     if (!pdf) return;
     const nextPage = Math.min(Math.max(pageNumber, 1), pdf.numPages);
     if (nextPage === currentPage) return;
-
-    const token = Date.now();
-    setPageTransition({
-      direction: nextPage > currentPage ? "forward" : "backward",
-      token,
-    });
-    if (pageTransitionTimeoutRef.current !== null) {
-      window.clearTimeout(pageTransitionTimeoutRef.current);
-    }
-    pageTransitionTimeoutRef.current = window.setTimeout(() => {
-      setPageTransition((current) => (current?.token === token ? null : current));
-      pageTransitionTimeoutRef.current = null;
-    }, 220);
 
     setCurrentPage(nextPage);
   }
@@ -429,12 +407,7 @@ export function LessonViewerPage() {
           onTouchEnd={onPageTouchEnd}
         >
           <div className="page-stack">
-            <div
-              key={pageTransition?.token ?? 0}
-              className={`page-content ${
-                pageTransition ? `page-enter-${pageTransition.direction}` : ""
-              }`}
-            >
+            <div className="page-content">
               <Suspense fallback={<p className="page-message">Rendering page…</p>}>
                 <PdfPage pdf={pdf} pageNumber={currentPage} scale={scale} />
               </Suspense>
