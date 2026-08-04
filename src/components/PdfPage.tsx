@@ -233,6 +233,7 @@ export function PdfPage({ pdf, pageNumber, scale }: PdfPageProps) {
     x: number;
     y: number;
   } | null>(null);
+  const lastOpenRef = useRef<{ reference: string; at: number } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -320,16 +321,22 @@ export function PdfPage({ pdf, pageNumber, scale }: PdfPageProps) {
     };
   }, [pdf, pageNumber, scale]);
 
-  function handleClick(event: React.MouseEvent<HTMLDivElement>) {
-    const selection = window.getSelection();
-    if (selection && selection.toString().trim()) return;
+  function openVerseFromTarget(target: EventTarget | null, ignoreSelection: boolean): boolean {
+    const element = target as HTMLElement | null;
+    const verseTarget = element?.closest(".verse-ref") as HTMLElement | null;
+    if (!verseTarget) return false;
 
-    const target = event.target as HTMLElement;
-    const verseTarget = target.closest(".verse-ref") as HTMLElement | null;
-    if (!verseTarget) return;
+    const selection = window.getSelection();
+    if (!ignoreSelection && selection && selection.toString().trim()) return false;
 
     const reference = verseTarget.dataset.ref;
-    if (!reference) return;
+    if (!reference) return false;
+
+    const now = Date.now();
+    const lastOpen = lastOpenRef.current;
+    if (lastOpen && lastOpen.reference === reference && now - lastOpen.at < 320) {
+      return true;
+    }
 
     const containerRect = containerRef.current?.getBoundingClientRect();
     const targetRect = verseTarget.getBoundingClientRect();
@@ -338,10 +345,28 @@ export function PdfPage({ pdf, pageNumber, scale }: PdfPageProps) {
       x: targetRect.left - (containerRect?.left ?? 0),
       y: targetRect.bottom - (containerRect?.top ?? 0) + 4,
     });
+    lastOpenRef.current = { reference, at: now };
+    return true;
+  }
+
+  function handleClick(event: React.MouseEvent<HTMLDivElement>) {
+    openVerseFromTarget(event.target, false);
+  }
+
+  function handleTouchEnd(event: React.TouchEvent<HTMLDivElement>) {
+    const opened = openVerseFromTarget(event.target, true);
+    if (opened) {
+      event.preventDefault();
+    }
   }
 
   return (
-    <div ref={containerRef} className="pdf-page" onClick={handleClick}>
+    <div
+      ref={containerRef}
+      className="pdf-page"
+      onClick={handleClick}
+      onTouchEnd={handleTouchEnd}
+    >
       <canvas ref={canvasRef} className="pdf-page-canvas" />
       <div ref={textLayerRef} className="textLayer" />
       {popover && (

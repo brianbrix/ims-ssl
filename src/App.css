@@ -893,6 +893,7 @@
   pointer-events: auto;
   border-bottom: 1px dashed rgba(47, 111, 237, 0.6);
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 @media (max-width: 860px) {
@@ -1114,6 +1115,12 @@
   .toc-sidebar button {
     font-size: 0.92rem;
     padding: 0.45rem 0.5rem;
+  }
+
+  .verse-ref {
+    display: inline-block;
+    padding: 0.05em 0.03em;
+    border-radius: 3px;
   }
 }
 

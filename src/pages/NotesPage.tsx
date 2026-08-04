@@ -30,6 +30,12 @@ function upsertSorted(notes: ReaderNote[], note: ReaderNote): ReaderNote[] {
   return [note, ...without].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
+function getLessonLabel(lesson: Lesson): string {
+  if (lesson.period?.trim()) return lesson.period.trim();
+  const fallback = [lesson.year, lesson.quarter].filter(Boolean).join(" ").trim();
+  return fallback || lesson.title;
+}
+
 export function NotesPage() {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [notes, setNotes] = useState<ReaderNote[]>([]);
@@ -66,22 +72,32 @@ export function NotesPage() {
     [notes, selectedId]
   );
 
+  const lessonLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    lessons.forEach((lesson) => {
+      map.set(lesson.id, getLessonLabel(lesson));
+    });
+    return map;
+  }, [lessons]);
+
   const filteredNotes = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return notes;
 
     return notes.filter((note) => {
+      const linkedLessonLabel =
+        (note.lessonId ? lessonLabelById.get(note.lessonId) : null) || note.lessonTitle || "";
       const haystack = [
         note.title,
         note.body,
-        note.lessonTitle || "",
+        linkedLessonLabel,
         note.tags.join(" "),
       ]
         .join(" ")
         .toLowerCase();
       return haystack.includes(query);
     });
-  }, [notes, search]);
+  }, [notes, search, lessonLabelById]);
 
   useEffect(() => {
     if (!selectedNote) return;
@@ -104,13 +120,14 @@ export function NotesPage() {
 
   function handleLessonChange(nextLessonId: string) {
     const lesson = lessons.find((item) => item.id === nextLessonId) ?? null;
+    const lessonLabel = lesson ? getLessonLabel(lesson) : null;
     updateSelectedNote((note) => ({
       ...note,
       lessonId: lesson?.id ?? null,
-      lessonTitle: lesson?.title ?? null,
+      lessonTitle: lessonLabel,
       title:
         note.title === "Untitled note" && lesson
-          ? `${lesson.title} notes`
+          ? `${lessonLabel} notes`
           : note.title,
     }));
   }
@@ -160,7 +177,11 @@ export function NotesPage() {
               onClick={() => setSelectedId(note.id)}
             >
               <strong>{note.title || "Untitled note"}</strong>
-              <span>{note.lessonTitle || "General note"}</span>
+              <span>
+                {(note.lessonId ? lessonLabelById.get(note.lessonId) : null) ||
+                  note.lessonTitle ||
+                  "General note"}
+              </span>
               <small>{new Date(note.updatedAt).toLocaleString()}</small>
             </button>
           ))}
@@ -200,7 +221,7 @@ export function NotesPage() {
                 <option value="">General note (not linked to a lesson)</option>
                 {lessons.map((lesson) => (
                   <option key={lesson.id} value={lesson.id}>
-                    {lesson.title}
+                    {getLessonLabel(lesson)}
                   </option>
                 ))}
               </select>
