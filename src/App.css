@@ -5,11 +5,13 @@
   --ims-bg: #f4f8fe;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
   /* This app uses its own fixed light theme; ignore the OS dark-mode
      color variables from index.css so text never ends up light-on-light. */
   color-scheme: light;
   color: #1a1a1a;
+  overflow: hidden;
 }
 
 .app-header {
@@ -90,6 +92,8 @@
   width: 100%;
   min-height: 0;
   overflow: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
 }
 
 .library-toolbar {
@@ -149,6 +153,7 @@
 .library-card h2 {
   font-size: 1.05rem;
   margin: 0 0 0.35rem;
+  overflow-wrap: anywhere;
 }
 
 .library-thumbnail {
@@ -301,6 +306,27 @@
 
   .app-header h1 {
     font-size: 1rem;
+  }
+
+  .library-toolbar {
+    padding: 0.65rem 0.75rem;
+    justify-content: space-between;
+  }
+
+  .library-grid {
+    grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
+    gap: 0.7rem;
+    padding: 0.8rem 0.75rem 1rem;
+  }
+
+  .library-card {
+    padding: 0.65rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .library-grid {
+    grid-template-columns: 1fr;
   }
 }
 
