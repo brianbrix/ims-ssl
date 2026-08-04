@@ -38,13 +38,17 @@ export function LessonViewerPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobileControlsOpen, setIsMobileControlsOpen] = useState(true);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
-  const [pageTurnDirection, setPageTurnDirection] = useState<"forward" | "backward">("forward");
-  const [pageTurnToken, setPageTurnToken] = useState(0);
+  const [flipOverlay, setFlipOverlay] = useState<{
+    image: string;
+    direction: "forward" | "backward";
+    token: number;
+  } | null>(null);
   const [toc, setToc] = useState<TocEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
   const pageContainerRef = useRef<HTMLDivElement | null>(null);
+  const flipTimeoutRef = useRef<number | null>(null);
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
 
@@ -91,6 +95,10 @@ export function LessonViewerPage() {
     return () => {
       cancelled = true;
       loadingTaskRef.current?.destroy();
+      if (flipTimeoutRef.current !== null) {
+        window.clearTimeout(flipTimeoutRef.current);
+        flipTimeoutRef.current = null;
+      }
     };
   }, [id]);
 
@@ -155,8 +163,30 @@ export function LessonViewerPage() {
     if (!pdf) return;
     const nextPage = Math.min(Math.max(pageNumber, 1), pdf.numPages);
     if (nextPage === currentPage) return;
-    setPageTurnDirection(nextPage > currentPage ? "forward" : "backward");
-    setPageTurnToken((value) => value + 1);
+
+    const canvas = pageContainerRef.current?.querySelector(".pdf-page-canvas") as
+      | HTMLCanvasElement
+      | null;
+    if (canvas && canvas.width > 0 && canvas.height > 0) {
+      try {
+        const token = Date.now();
+        setFlipOverlay({
+          image: canvas.toDataURL("image/jpeg", 0.9),
+          direction: nextPage > currentPage ? "forward" : "backward",
+          token,
+        });
+        if (flipTimeoutRef.current !== null) {
+          window.clearTimeout(flipTimeoutRef.current);
+        }
+        flipTimeoutRef.current = window.setTimeout(() => {
+          setFlipOverlay((current) => (current?.token === token ? null : current));
+          flipTimeoutRef.current = null;
+        }, 380);
+      } catch {
+        setFlipOverlay(null);
+      }
+    }
+
     setCurrentPage(nextPage);
   }
 
@@ -392,14 +422,22 @@ export function LessonViewerPage() {
           onTouchEnd={onPageTouchEnd}
         >
           <div className="page-stack">
-            <div
-              key={`${currentPage}-${pageTurnToken}`}
-              className={`page-turn-shell page-turn-${pageTurnDirection}`}
-            >
-              <Suspense fallback={<p className="page-message">Rendering page…</p>}>
-                <PdfPage pdf={pdf} pageNumber={currentPage} scale={scale} />
-              </Suspense>
-            </div>
+            <Suspense fallback={<p className="page-message">Rendering page…</p>}>
+              <PdfPage pdf={pdf} pageNumber={currentPage} scale={scale} />
+            </Suspense>
+            {flipOverlay && (
+              <div
+                key={flipOverlay.token}
+                className={`page-flip-overlay page-flip-${flipOverlay.direction}`}
+                onAnimationEnd={() => {
+                  setFlipOverlay((current) =>
+                    current?.token === flipOverlay.token ? null : current
+                  );
+                }}
+              >
+                <img src={flipOverlay.image} alt="" aria-hidden="true" />
+              </div>
+            )}
           </div>
         </div>
 
