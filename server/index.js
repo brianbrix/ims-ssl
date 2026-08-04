@@ -115,8 +115,18 @@ app.post("/api/lessons", requireAdmin, upload.single("file"), async (req, res) =
       operations: optimization.operations,
       beforeBytes: optimization.beforeBytes,
       afterBytes: optimization.afterBytes,
+      deltaBytes: optimization.deltaBytes,
       savingsBytes: optimization.savingsBytes,
       savingsPercent: Number(optimization.savingsPercent.toFixed(2)),
+    });
+  } else if (optimization.attempted && optimization.skippedReason === "larger-output") {
+    console.log("[pdf-optimize] kept original (candidate larger)", {
+      file: req.file.filename,
+      mode: optimization.mode,
+      operations: optimization.operations,
+      beforeBytes: optimization.beforeBytes,
+      afterBytes: optimization.afterBytes,
+      deltaBytes: optimization.deltaBytes,
     });
   }
 
@@ -176,6 +186,7 @@ if (existsSync(FRONTEND_DIST_DIR)) {
 app.listen(PORT, HOST, () => {
   console.log(`Sabbath School Reader listening on http://${HOST}:${PORT}`);
   console.log(`PDF optimization mode: ${process.env.PDF_OPTIMIZE_MODE || "lossless"}`);
+  console.log(`PDF optimize allow larger output: ${process.env.PDF_OPTIMIZE_ALLOW_LARGER || "false"}`);
   if (PUBLIC_API_BASE_URL) {
     console.log(`Using public API base URL ${PUBLIC_API_BASE_URL}`);
   }

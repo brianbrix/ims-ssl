@@ -83,6 +83,8 @@ Set backend env variable `PDF_OPTIMIZE_MODE`:
 6. `prepress`: highest quality lossy profile
 
 Set `PDF_OPTIMIZE_STRICT=true` to reject uploads if required tools are unavailable.
+By default, optimized output is only kept when file size is smaller or equal.
+Set `PDF_OPTIMIZE_ALLOW_LARGER=true` only if you want to force replacement even when output grows.
 
 ### One-Time Backfill For Existing PDFs
 
@@ -132,6 +134,7 @@ CORS_ORIGIN=https://your-frontend-domain.com
 PUBLIC_API_BASE_URL=https://your-api-domain.com
 PDF_OPTIMIZE_MODE=lossless
 PDF_OPTIMIZE_STRICT=false
+PDF_OPTIMIZE_ALLOW_LARGER=false
 ```
 
 ### 2. Build and start

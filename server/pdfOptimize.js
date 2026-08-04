@@ -31,6 +31,11 @@ function parseStrict(rawValue) {
   return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
 }
 
+function parseAllowLarger(rawValue) {
+  const normalized = String(rawValue || "").trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
 function runCommand(command, args) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
@@ -71,13 +76,17 @@ async function tryGhostscriptCompress(inputPath, outputPath, gsProfile) {
 export async function optimizePdfInPlace(filePath) {
   const mode = parseMode(process.env.PDF_OPTIMIZE_MODE);
   const strict = parseStrict(process.env.PDF_OPTIMIZE_STRICT);
+  const allowLarger = parseAllowLarger(process.env.PDF_OPTIMIZE_ALLOW_LARGER);
 
   if (mode === "none") {
     return {
       mode,
+      attempted: false,
       optimized: false,
+      skippedReason: "mode-none",
       beforeBytes: null,
       afterBytes: null,
+      deltaBytes: 0,
       savingsBytes: 0,
       savingsPercent: 0,
       operations: [],
@@ -118,19 +127,32 @@ export async function optimizePdfInPlace(filePath) {
       }
     }
 
+    let optimized = false;
+    let skippedReason = null;
+
     if (currentInput !== filePath) {
-      await copyFile(currentInput, filePath);
+      const candidateStats = await stat(currentInput);
+      if (allowLarger || candidateStats.size <= beforeStats.size) {
+        await copyFile(currentInput, filePath);
+        optimized = true;
+      } else {
+        skippedReason = "larger-output";
+      }
     }
 
     const afterStats = await stat(filePath);
-    const savingsBytes = Math.max(0, beforeStats.size - afterStats.size);
+    const deltaBytes = afterStats.size - beforeStats.size;
+    const savingsBytes = beforeStats.size - afterStats.size;
     const savingsPercent = beforeStats.size > 0 ? (savingsBytes / beforeStats.size) * 100 : 0;
 
     return {
       mode,
-      optimized: operations.length > 0,
+      attempted: operations.length > 0,
+      optimized,
+      skippedReason,
       beforeBytes: beforeStats.size,
       afterBytes: afterStats.size,
+      deltaBytes,
       savingsBytes,
       savingsPercent,
       operations,

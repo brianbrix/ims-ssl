@@ -27,6 +27,12 @@ function formatBytes(bytes) {
   return `${value.toFixed(precision)} ${units[unitIndex]}`;
 }
 
+function formatSignedBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes === 0) return "0 B";
+  const sign = bytes > 0 ? "+" : "-";
+  return `${sign}${formatBytes(Math.abs(bytes))}`;
+}
+
 async function fileExists(filePath) {
   try {
     await access(filePath);
@@ -43,6 +49,7 @@ async function main() {
   let missing = 0;
   let warnings = 0;
   let errors = 0;
+  let skippedLarger = 0;
   let totalBefore = 0;
   let totalAfter = 0;
 
@@ -89,7 +96,14 @@ async function main() {
         console.log(
           `[pdf-backfill] optimized ${lesson.fileName}: ${formatBytes(
             result.beforeBytes ?? 0
-          )} -> ${formatBytes(result.afterBytes ?? 0)} (saved ${formatBytes(result.savingsBytes)})`
+          )} -> ${formatBytes(result.afterBytes ?? 0)} (delta ${formatSignedBytes(result.deltaBytes ?? 0)})`
+        );
+      } else if (result.attempted && result.skippedReason === "larger-output") {
+        skippedLarger += 1;
+        console.log(
+          `[pdf-backfill] kept original ${lesson.fileName}: candidate was larger (delta ${formatSignedBytes(
+            result.deltaBytes ?? 0
+          )})`
         );
       } else {
         console.log(`[pdf-backfill] skipped optimization for ${lesson.fileName} (mode=${result.mode}).`);
@@ -105,7 +119,8 @@ async function main() {
     }
   }
 
-  const savingsBytes = Math.max(0, totalBefore - totalAfter);
+  const netDeltaBytes = totalAfter - totalBefore;
+  const savingsBytes = totalBefore - totalAfter;
   const savingsPercent = totalBefore > 0 ? (savingsBytes / totalBefore) * 100 : 0;
 
   console.log("[pdf-backfill] summary");
@@ -114,9 +129,10 @@ async function main() {
   console.log(`  missing:   ${missing}`);
   console.log(`  warnings:  ${warnings}`);
   console.log(`  errors:    ${errors}`);
+  console.log(`  kept:      ${skippedLarger} (candidate larger)`);
   console.log(`  total in:  ${formatBytes(totalBefore)}`);
   console.log(`  total out: ${formatBytes(totalAfter)}`);
-  console.log(`  saved:     ${formatBytes(savingsBytes)} (${savingsPercent.toFixed(2)}%)`);
+  console.log(`  net delta: ${formatSignedBytes(netDeltaBytes)} (saved ${savingsPercent.toFixed(2)}%)`);
 
   if (errors > 0) {
     process.exit(1);
