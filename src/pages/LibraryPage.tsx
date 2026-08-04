@@ -8,7 +8,7 @@ const THUMBNAIL_CACHE_DB_NAME = "lesson-thumb-cache";
 const THUMBNAIL_CACHE_STORE = "thumbnails";
 const THUMBNAIL_CACHE_DB_VERSION = 1;
 const THUMBNAIL_CACHE_MAX_ITEMS = 60;
-const thumbnailMemoryCache = new Map<string, string>();
+const thumbnailMemoryCache = new Map<string, { dataUrl: string; lastAccessedAt: number }>();
 let thumbnailDbPromise: Promise<IDBDatabase | null> | null = null;
 
 interface ThumbnailCacheRecord {
@@ -66,8 +66,11 @@ function openThumbnailDb(): Promise<IDBDatabase | null> {
 }
 
 async function getCachedThumbnail(cacheKey: string): Promise<string | null> {
-  const memoryHit = thumbnailMemoryCache.get(cacheKey);
-  if (memoryHit) return memoryHit;
+  const cached = thumbnailMemoryCache.get(cacheKey);
+  if (cached) {
+    cached.lastAccessedAt = Date.now();
+    return cached.dataUrl;
+  }
 
   try {
     const db = await openThumbnailDb();
@@ -88,10 +91,26 @@ async function getCachedThumbnail(cacheKey: string): Promise<string | null> {
     store.put(record);
     await transactionToPromise(transaction);
 
-    thumbnailMemoryCache.set(cacheKey, record.dataUrl);
+    thumbnailMemoryCache.set(cacheKey, {
+      dataUrl: record.dataUrl,
+      lastAccessedAt: record.lastAccessedAt,
+    });
     return record.dataUrl;
   } catch {
     return null;
+  }
+}
+
+function pruneThumbnailMemoryCache(): void {
+  if (thumbnailMemoryCache.size <= THUMBNAIL_CACHE_MAX_ITEMS) return;
+
+  const entries = [...thumbnailMemoryCache.entries()];
+  entries.sort((a, b) => a[1].lastAccessedAt - b[1].lastAccessedAt);
+
+  const toDelete = thumbnailMemoryCache.size - THUMBNAIL_CACHE_MAX_ITEMS;
+  for (let index = 0; index < toDelete; index += 1) {
+    const key = entries[index]?.[0];
+    if (key) thumbnailMemoryCache.delete(key);
   }
 }
 
@@ -135,7 +154,8 @@ async function pruneThumbnailCache(db: IDBDatabase): Promise<void> {
 }
 
 async function saveCachedThumbnail(cacheKey: string, value: string): Promise<void> {
-  thumbnailMemoryCache.set(cacheKey, value);
+  thumbnailMemoryCache.set(cacheKey, { dataUrl: value, lastAccessedAt: Date.now() });
+  pruneThumbnailMemoryCache();
 
   try {
     const db = await openThumbnailDb();
@@ -155,7 +175,7 @@ async function saveCachedThumbnail(cacheKey: string, value: string): Promise<voi
 
     await pruneThumbnailCache(db);
   } catch {
-    // Ignore storage errors; in-memory cache still helps in current session.
+    // Ignore IndexedDB errors and keep cache in memory for this tab session.
   }
 }
 

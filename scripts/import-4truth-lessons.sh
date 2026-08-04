@@ -2,10 +2,10 @@
 set -euo pipefail
 
 SOURCE_URL="${SOURCE_URL:-https://www.4truth.ca/downloads/sabbath-school-lessons/}"
-API_BASE_URL="${API_BASE_URL:-${VPS_API_BASE_URL:-}}"
+API_BASE_URL="${API_BASE_URL:-${VPS_API_BASE_URL:-https://ims-ssl.afyaquik.com/api}}"
 ADMIN_TOKEN="${ADMIN_TOKEN:-}"
 TITLE_FALLBACK="${TITLE:-Sabbath School Lessons}"
-PERIOD_PREFIX="${PERIOD_PREFIX:-}"
+PERIOD_PREFIX="${PERIOD_PREFIX:-PR}"
 DRY_RUN="${DRY_RUN:-0}"
 
 is_true() {
