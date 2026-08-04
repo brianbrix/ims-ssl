@@ -31,7 +31,7 @@ export async function extractOutlineToc(
 
   const entries: TocEntry[] = [];
 
-  async function walk(items: typeof outline, level: number) {
+  async function walk(items: NonNullable<typeof outline>, level: number) {
     for (const item of items) {
       const pageNumber = await resolvePageNumber(pdf, item.dest);
       if (pageNumber !== null) {
@@ -69,7 +69,7 @@ export async function extractHeuristicToc(
     const page = await pdf.getPage(pageNumber);
     const textContent = await page.getTextContent();
     const pageText = textContent.items
-      .map((item) => ("str" in item ? item.str : ""))
+      .map((item: { str?: string }) => item.str ?? "")
       .join(" ");
 
     for (const pattern of HEADING_PATTERNS) {

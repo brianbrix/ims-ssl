@@ -169,7 +169,7 @@ async function saveRenderedPage(
   cacheKey: string,
   imageDataUrl: string,
   textLayerHtml: string
-): void {
+): Promise<void> {
   pageRenderCache.set(cacheKey, {
     imageDataUrl,
     textLayerHtml,
