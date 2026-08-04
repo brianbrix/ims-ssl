@@ -65,7 +65,14 @@ declare module "pdfjs-dist" {
     workerSrc: string;
   };
 
-  export function getDocument(src: { url: string }): PDFDocumentLoadingTask;
+  export interface PDFDocumentInitParameters {
+    url: string;
+    disableAutoFetch?: boolean;
+    disableStream?: boolean;
+    rangeChunkSize?: number;
+  }
+
+  export function getDocument(src: PDFDocumentInitParameters): PDFDocumentLoadingTask;
 }
 
 declare module "pdfjs-dist/legacy/build/pdf.mjs" {
