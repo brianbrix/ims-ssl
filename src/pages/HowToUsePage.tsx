@@ -68,6 +68,17 @@ export function HowToUsePage() {
         </article>
 
         <article className="howto-card">
+          <h3>How To Use Notes</h3>
+          <ol>
+            <li>Open Notes from the top menu.</li>
+            <li>Tap New note to create a fresh note.</li>
+            <li>Type a title, content, tags, and optionally link the note to a lesson.</li>
+            <li>Notes autosave while you type.</li>
+            <li>Use Search notes to quickly find previous notes.</li>
+          </ol>
+        </article>
+
+        <article className="howto-card">
           <h3>Troubleshooting</h3>
           <ul>
             <li>If a page seems slow, wait for first render and try again.</li>

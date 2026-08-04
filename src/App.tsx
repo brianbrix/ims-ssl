@@ -11,6 +11,9 @@ const LessonViewerPage = lazy(() => import("./pages/LessonViewerPage").then((mod
 const HowToUsePage = lazy(() => import("./pages/HowToUsePage").then((module) => ({
   default: module.HowToUsePage,
 })));
+const NotesPage = lazy(() => import("./pages/NotesPage").then((module) => ({
+  default: module.NotesPage,
+})));
 
 function App() {
   return (
@@ -26,6 +29,7 @@ function App() {
           <NavLink to="/" end>
             Library
           </NavLink>
+          <NavLink to="/notes">Notes</NavLink>
           <NavLink to="/how-to-use">How to use</NavLink>
           <NavLink to="/upload">Upload</NavLink>
         </nav>
@@ -34,6 +38,14 @@ function App() {
       <div className="app-body">
         <Routes>
           <Route path="/" element={<LibraryPage />} />
+          <Route
+            path="/notes"
+            element={(
+              <Suspense fallback={<p className="page-message">Loading notes…</p>}>
+                <NotesPage />
+              </Suspense>
+            )}
+          />
           <Route
             path="/how-to-use"
             element={(
