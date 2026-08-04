@@ -1,9 +1,13 @@
+import { lazy, Suspense } from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
 import { LibraryPage } from "./pages/LibraryPage";
 import { UploadPage } from "./pages/UploadPage";
-import { LessonViewerPage } from "./pages/LessonViewerPage";
 import imsLogo from "./assets/ims-logo.png";
 import "./App.css";
+
+const LessonViewerPage = lazy(() => import("./pages/LessonViewerPage").then((module) => ({
+  default: module.LessonViewerPage,
+})));
 
 function App() {
   return (
@@ -27,7 +31,14 @@ function App() {
         <Routes>
           <Route path="/" element={<LibraryPage />} />
           <Route path="/upload" element={<UploadPage />} />
-          <Route path="/lesson/:id" element={<LessonViewerPage />} />
+          <Route
+            path="/lesson/:id"
+            element={(
+              <Suspense fallback={<p className="page-message">Loading lesson viewer…</p>}>
+                <LessonViewerPage />
+              </Suspense>
+            )}
+          />
         </Routes>
       </div>
     </div>

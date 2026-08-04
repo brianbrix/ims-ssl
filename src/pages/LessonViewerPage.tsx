@@ -1,11 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist";
 import { pdfjsLib } from "../lib/pdfSetup";
 import { buildToc, type TocEntry } from "../lib/toc";
 import { getLesson, lessonFileUrl, type Lesson } from "../api/lessons";
-import { PdfPage } from "../components/PdfPage";
-import { TocSidebar } from "../components/TocSidebar";
+
+const PdfPage = lazy(() => import("../components/PdfPage").then((module) => ({
+  default: module.PdfPage,
+})));
+const TocSidebar = lazy(() => import("../components/TocSidebar").then((module) => ({
+  default: module.TocSidebar,
+})));
 
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 3;
@@ -18,6 +23,7 @@ export function LessonViewerPage() {
   const [scale, setScale] = useState(1.2);
   const [isFitWidth, setIsFitWidth] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [toc, setToc] = useState<TocEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +77,24 @@ export function LessonViewerPage() {
   }, [id]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const mediaQuery = window.matchMedia("(min-width: 981px)");
+    const applySidebarMode = (isDesktop: boolean) => {
+      if (isDesktop) {
+        setIsSidebarOpen(true);
+      } else {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    applySidebarMode(mediaQuery.matches);
+    const onChange = (event: MediaQueryListEvent) => applySidebarMode(event.matches);
+    mediaQuery.addEventListener("change", onChange);
+    return () => mediaQuery.removeEventListener("change", onChange);
+  }, []);
+
+  useEffect(() => {
     if (!pdf) return;
     const totalPages = pdf.numPages;
 
@@ -110,6 +134,13 @@ export function LessonViewerPage() {
     setCurrentPage(Math.min(Math.max(pageNumber, 1), pdf.numPages));
   }
 
+  function handleTocSelect(pageNumber: number) {
+    goToPage(pageNumber);
+    if (typeof window !== "undefined" && window.innerWidth <= 980) {
+      setIsSidebarOpen(false);
+    }
+  }
+
   useEffect(() => {
     if (!pdf || !isFitWidth) return;
     const pdfDoc = pdf;
@@ -140,23 +171,49 @@ export function LessonViewerPage() {
     };
   }, [pdf, currentPage, isFitWidth]);
 
+  useEffect(() => {
+    if (!pdf) return;
+
+    const nextPage = currentPage + 1;
+    const previousPage = currentPage - 1;
+
+    if (nextPage <= pdf.numPages) {
+      void pdf.getPage(nextPage).catch(() => {});
+    }
+
+    if (previousPage >= 1) {
+      void pdf.getPage(previousPage).catch(() => {});
+    }
+  }, [pdf, currentPage]);
+
   if (isLoading) return <p className="page-message">Loading lesson…</p>;
   if (error) return <p className="page-message error">{error}</p>;
   if (!pdf || !lesson) return null;
 
   return (
-    <div className="viewer-layout">
-      <aside className="sidebar">
+    <div className={`viewer-layout ${isSidebarOpen ? "sidebar-open" : ""}`}>
+      <aside className="sidebar" id="lesson-outline">
         <div className="lesson-meta">
           <h2>{lesson.title}</h2>
           {lesson.period && <p className="library-period">{lesson.period}</p>}
           <Link to="/">← Back to library</Link>
         </div>
-        <TocSidebar entries={toc} currentPage={currentPage} onSelect={goToPage} />
+        <Suspense fallback={<p className="toc-empty">Loading table of contents…</p>}>
+          <TocSidebar entries={toc} currentPage={currentPage} onSelect={handleTocSelect} />
+        </Suspense>
       </aside>
 
       <main className="viewer-main">
         <div className="toolbar">
+          <button
+            className={`sidebar-toggle ${isSidebarOpen ? "toolbar-toggle-on" : ""}`}
+            onClick={() => setIsSidebarOpen((value) => !value)}
+            aria-expanded={isSidebarOpen}
+            aria-controls="lesson-outline"
+          >
+            Outline
+          </button>
+
           <button onClick={() => goToPage(1)} disabled={currentPage <= 1}>
             First
           </button>
@@ -229,12 +286,11 @@ export function LessonViewerPage() {
 
         </div>
 
-        <div
-          ref={pageContainerRef}
-          className={`page-container ${highContrast ? "pdf-high-contrast" : ""}`}
-        >
+        <div ref={pageContainerRef} className={`page-container ${highContrast ? "pdf-high-contrast" : ""}`}>
           <div className="page-stack">
-            <PdfPage pdf={pdf} pageNumber={currentPage} scale={scale} />
+            <Suspense fallback={<p className="page-message">Rendering page…</p>}>
+              <PdfPage pdf={pdf} pageNumber={currentPage} scale={scale} />
+            </Suspense>
           </div>
         </div>
 
