@@ -14,6 +14,18 @@ const TocSidebar = lazy(() => import("../components/TocSidebar").then((module) =
 
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 3;
+const LESSON_PAGE_PROGRESS_KEY_PREFIX = "lesson-last-page:";
+
+function getStoredPage(lessonId: string, totalPages: number): number {
+  try {
+    const stored = localStorage.getItem(`${LESSON_PAGE_PROGRESS_KEY_PREFIX}${lessonId}`);
+    const parsed = Number(stored);
+    if (!Number.isFinite(parsed)) return 1;
+    return Math.min(Math.max(Math.trunc(parsed), 1), totalPages);
+  } catch {
+    return 1;
+  }
+}
 
 export function LessonViewerPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +38,8 @@ export function LessonViewerPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobileControlsOpen, setIsMobileControlsOpen] = useState(true);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [pageTurnDirection, setPageTurnDirection] = useState<"forward" | "backward">("forward");
+  const [pageTurnToken, setPageTurnToken] = useState(0);
   const [toc, setToc] = useState<TocEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +69,7 @@ export function LessonViewerPage() {
         if (cancelled) return;
 
         setPdf(doc);
-        setCurrentPage(1);
+        setCurrentPage(getStoredPage(id, doc.numPages));
         setIsLoading(false);
 
         // Build TOC in the background so first-page rendering is not blocked.
@@ -139,7 +153,11 @@ export function LessonViewerPage() {
 
   function goToPage(pageNumber: number) {
     if (!pdf) return;
-    setCurrentPage(Math.min(Math.max(pageNumber, 1), pdf.numPages));
+    const nextPage = Math.min(Math.max(pageNumber, 1), pdf.numPages);
+    if (nextPage === currentPage) return;
+    setPageTurnDirection(nextPage > currentPage ? "forward" : "backward");
+    setPageTurnToken((value) => value + 1);
+    setCurrentPage(nextPage);
   }
 
   function handleTocSelect(pageNumber: number) {
@@ -199,6 +217,15 @@ export function LessonViewerPage() {
       void pdf.getPage(previousPage).catch(() => {});
     }
   }, [pdf, currentPage]);
+
+  useEffect(() => {
+    if (!id || !pdf) return;
+    try {
+      localStorage.setItem(`${LESSON_PAGE_PROGRESS_KEY_PREFIX}${id}`, String(currentPage));
+    } catch {
+      // Ignore storage failures and continue without persistence.
+    }
+  }, [id, pdf, currentPage]);
 
   if (isLoading) return <p className="page-message">Loading lesson…</p>;
   if (error) return <p className="page-message error">{error}</p>;
@@ -365,9 +392,14 @@ export function LessonViewerPage() {
           onTouchEnd={onPageTouchEnd}
         >
           <div className="page-stack">
-            <Suspense fallback={<p className="page-message">Rendering page…</p>}>
-              <PdfPage pdf={pdf} pageNumber={currentPage} scale={scale} />
-            </Suspense>
+            <div
+              key={`${currentPage}-${pageTurnToken}`}
+              className={`page-turn-shell page-turn-${pageTurnDirection}`}
+            >
+              <Suspense fallback={<p className="page-message">Rendering page…</p>}>
+                <PdfPage pdf={pdf} pageNumber={currentPage} scale={scale} />
+              </Suspense>
+            </div>
           </div>
         </div>
 
