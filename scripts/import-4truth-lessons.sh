@@ -1,12 +1,41 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+
+load_env_file() {
+  local env_path="$1"
+  if [[ ! -f "$env_path" ]]; then
+    return
+  fi
+
+  set -a
+  # shellcheck disable=SC1090
+  source "$env_path"
+  set +a
+}
+
+# Load project .env first, then local cwd .env if different.
+# Explicit shell environment values still win over defaults below.
+load_env_file "$PROJECT_ROOT/.env"
+if [[ "$PWD" != "$PROJECT_ROOT" ]]; then
+  load_env_file "$PWD/.env"
+fi
+
 SOURCE_URL="${SOURCE_URL:-https://www.4truth.ca/downloads/sabbath-school-lessons/}"
-API_BASE_URL="${API_BASE_URL:-${VPS_API_BASE_URL:-https://ims-ssl.afyaquik.com/api}}"
+API_BASE_URL="${API_BASE_URL:-${VPS_API_BASE_URL:-https://ims-ssl.afyaquik.com}}"
 ADMIN_TOKEN="${ADMIN_TOKEN:-}"
 TITLE_FALLBACK="${TITLE:-Sabbath School Lessons}"
 PERIOD_PREFIX="${PERIOD_PREFIX:-PR}"
 DRY_RUN="${DRY_RUN:-0}"
+
+# Accept either https://host or https://host/api and normalize to one API endpoint.
+API_BASE_URL="${API_BASE_URL%/}"
+if [[ "$API_BASE_URL" == */api ]]; then
+  API_BASE_URL="${API_BASE_URL%/api}"
+fi
+LESSONS_ENDPOINT="${API_BASE_URL}/api/lessons"
 
 is_true() {
   case "$1" in
@@ -87,7 +116,7 @@ for year, quarter, title, period, source in lessons:
 PY
 
 if ! is_true "$DRY_RUN"; then
-  curl -fsSL "$API_BASE_URL/api/lessons" -o "$existing_json"
+  curl -fsSL "$LESSONS_ENDPOINT" -o "$existing_json"
 
   python3 - "$existing_json" "$existing_file" <<'PY'
 from __future__ import annotations
@@ -146,7 +175,7 @@ while IFS=$'\t' read -r year quarter title period source_url; do
     -F "period=${period}" \
     -F "year=${year}" \
     -F "quarter=${quarter}" \
-    "$API_BASE_URL/api/lessons")"
+    "$LESSONS_ENDPOINT")"
 
   if [[ "$http_status" != 2* ]]; then
     echo "Upload failed for ${source_url} (${http_status})." >&2
