@@ -1,12 +1,21 @@
 import { useEffect, useState } from "react";
 
 const TRANSLATION_KEY = "verseTranslation";
+const VERSE_CACHE_DB_NAME = "verse-cache";
+const VERSE_CACHE_STORE = "verses";
+const VERSE_CACHE_DB_VERSION = 1;
+const VERSE_CACHE_MAX_ITEMS = 600;
 const TRANSLATIONS = [
   { value: "web", label: "WEB" },
   { value: "kjv", label: "KJV" },
   { value: "bbe", label: "BBE" },
   { value: "oeb-us", label: "OEB-US" },
 ] as const;
+const verseMemoryCache = new Map<
+  string,
+  { data: BibleApiResponse; lastAccessedAt: number }
+>();
+let verseDbPromise: Promise<IDBDatabase | null> | null = null;
 
 function getInitialTranslation(): string {
   const saved = localStorage.getItem(TRANSLATION_KEY);
@@ -27,6 +36,174 @@ interface BibleApiResponse {
   reference: string;
   text: string;
   translation_name: string;
+}
+
+interface VerseCacheRecord {
+  cacheKey: string;
+  data: BibleApiResponse;
+  updatedAt: number;
+  lastAccessedAt: number;
+}
+
+function getVerseCacheKey(reference: string, translation: string): string {
+  const normalizedRef = reference.replace(/\s+/g, " ").trim().toLowerCase();
+  return `${translation}:${normalizedRef}`;
+}
+
+function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function transactionToPromise(transaction: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error);
+  });
+}
+
+function openVerseDb(): Promise<IDBDatabase | null> {
+  if (typeof indexedDB === "undefined") return Promise.resolve(null);
+  if (verseDbPromise) return verseDbPromise;
+
+  verseDbPromise = new Promise((resolve) => {
+    const request = indexedDB.open(VERSE_CACHE_DB_NAME, VERSE_CACHE_DB_VERSION);
+
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(VERSE_CACHE_STORE)) {
+        const store = db.createObjectStore(VERSE_CACHE_STORE, { keyPath: "cacheKey" });
+        store.createIndex("lastAccessedAt", "lastAccessedAt", { unique: false });
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+
+  return verseDbPromise;
+}
+
+function pruneVerseMemoryCache(): void {
+  if (verseMemoryCache.size <= VERSE_CACHE_MAX_ITEMS) return;
+
+  const entries = [...verseMemoryCache.entries()];
+  entries.sort((a, b) => a[1].lastAccessedAt - b[1].lastAccessedAt);
+  const toDelete = verseMemoryCache.size - VERSE_CACHE_MAX_ITEMS;
+
+  for (let index = 0; index < toDelete; index += 1) {
+    const key = entries[index]?.[0];
+    if (key) verseMemoryCache.delete(key);
+  }
+}
+
+async function pruneVerseDbCache(db: IDBDatabase): Promise<void> {
+  const countTx = db.transaction(VERSE_CACHE_STORE, "readonly");
+  const countStore = countTx.objectStore(VERSE_CACHE_STORE);
+  const totalCount = await requestToPromise(countStore.count());
+  await transactionToPromise(countTx);
+
+  if (totalCount <= VERSE_CACHE_MAX_ITEMS) return;
+
+  const toDelete = totalCount - VERSE_CACHE_MAX_ITEMS;
+  const deleteTx = db.transaction(VERSE_CACHE_STORE, "readwrite");
+  const store = deleteTx.objectStore(VERSE_CACHE_STORE);
+  const index = store.index("lastAccessedAt");
+
+  await new Promise<void>((resolve, reject) => {
+    let removed = 0;
+    const cursorRequest = index.openCursor();
+
+    cursorRequest.onsuccess = () => {
+      const cursor = cursorRequest.result;
+      if (!cursor || removed >= toDelete) {
+        resolve();
+        return;
+      }
+
+      const record = cursor.value as VerseCacheRecord;
+      verseMemoryCache.delete(record.cacheKey);
+      cursor.delete();
+      removed += 1;
+      cursor.continue();
+    };
+
+    cursorRequest.onerror = () => reject(cursorRequest.error);
+  });
+
+  await transactionToPromise(deleteTx);
+}
+
+async function getCachedVerse(reference: string, translation: string): Promise<BibleApiResponse | null> {
+  const cacheKey = getVerseCacheKey(reference, translation);
+  const memoryHit = verseMemoryCache.get(cacheKey);
+  if (memoryHit) {
+    memoryHit.lastAccessedAt = Date.now();
+    return memoryHit.data;
+  }
+
+  try {
+    const db = await openVerseDb();
+    if (!db) return null;
+
+    const transaction = db.transaction(VERSE_CACHE_STORE, "readwrite");
+    const store = transaction.objectStore(VERSE_CACHE_STORE);
+    const record = (await requestToPromise(
+      store.get(cacheKey)
+    )) as VerseCacheRecord | undefined;
+
+    if (!record) {
+      await transactionToPromise(transaction);
+      return null;
+    }
+
+    record.lastAccessedAt = Date.now();
+    store.put(record);
+    await transactionToPromise(transaction);
+
+    verseMemoryCache.set(cacheKey, {
+      data: record.data,
+      lastAccessedAt: record.lastAccessedAt,
+    });
+    return record.data;
+  } catch {
+    return null;
+  }
+}
+
+async function saveCachedVerse(
+  reference: string,
+  translation: string,
+  data: BibleApiResponse
+): Promise<void> {
+  const cacheKey = getVerseCacheKey(reference, translation);
+
+  verseMemoryCache.set(cacheKey, { data, lastAccessedAt: Date.now() });
+  pruneVerseMemoryCache();
+
+  try {
+    const db = await openVerseDb();
+    if (!db) return;
+
+    const now = Date.now();
+    const transaction = db.transaction(VERSE_CACHE_STORE, "readwrite");
+    const store = transaction.objectStore(VERSE_CACHE_STORE);
+    const record: VerseCacheRecord = {
+      cacheKey,
+      data,
+      updatedAt: now,
+      lastAccessedAt: now,
+    };
+    store.put(record);
+    await transactionToPromise(transaction);
+
+    await pruneVerseDbCache(db);
+  } catch {
+    // Ignore cache write failures and proceed with in-memory cache.
+  }
 }
 
 function splitReferenceQueries(reference: string): string[] {
@@ -66,13 +243,18 @@ function splitReferenceQueries(reference: string): string[] {
 }
 
 async function fetchVerse(reference: string, translation: string): Promise<BibleApiResponse> {
+  const cached = await getCachedVerse(reference, translation);
+  if (cached) return cached;
+
   const response = await fetch(
     `https://bible-api.com/${encodeURIComponent(reference)}?translation=${translation}`
   );
   if (!response.ok) {
     throw new Error(`Verse not found for "${reference}".`);
   }
-  return response.json();
+  const verse = (await response.json()) as BibleApiResponse;
+  void saveCachedVerse(reference, translation, verse);
+  return verse;
 }
 
 export function VersePopover({ reference, x, y, onClose }: VersePopoverProps) {
