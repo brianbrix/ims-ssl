@@ -29,10 +29,12 @@ In the Wasmer app dashboard, set:
 1. `ADMIN_TOKEN` = a strong secret passcode
 2. `STORAGE_ROOT` = `/persistent`
 3. `CORS_ORIGIN` = your frontend origin(s) (or `*` while testing)
+4. `PDF_OPTIMIZE_MODE` = `lossless` (recommended default)
 
 Optional:
 
 1. `PUBLIC_API_BASE_URL` if you need fixed absolute API URLs in responses.
+2. `PDF_OPTIMIZE_STRICT=true` to fail uploads when optimizer tools are missing.
 
 ### 4. Persistent storage
 
@@ -67,6 +69,41 @@ SOURCE_URL=https://www.4truth.ca/downloads/sabbath-school-lessons/
 DRY_RUN=1
 ```
 
+### PDF Optimization
+
+Uploads are now optimized server-side before lesson metadata is saved.
+
+Set backend env variable `PDF_OPTIMIZE_MODE`:
+
+1. `none`: skip optimization
+2. `lossless`: linearize + object optimization (no visual quality drop)
+3. `screen`: strongest lossy compression
+4. `ebook`: balanced lossy compression
+5. `printer`: higher quality lossy profile
+6. `prepress`: highest quality lossy profile
+
+Set `PDF_OPTIMIZE_STRICT=true` to reject uploads if required tools are unavailable.
+
+### One-Time Backfill For Existing PDFs
+
+To optimize PDFs that were uploaded before this feature was added:
+
+Local:
+
+```bash
+DRY_RUN=1 bash scripts/optimize-existing-pdfs.sh
+bash scripts/optimize-existing-pdfs.sh
+```
+
+Docker:
+
+```bash
+docker compose exec app bash -lc 'DRY_RUN=1 bash scripts/optimize-existing-pdfs.sh'
+docker compose exec app bash -lc 'bash scripts/optimize-existing-pdfs.sh'
+```
+
+You can also run `npm run pdf:backfill` directly.
+
 ### Run
 
 ```bash
@@ -93,6 +130,8 @@ Create a `.env` file next to `docker-compose.yml`:
 ADMIN_TOKEN=replace-with-strong-token
 CORS_ORIGIN=https://your-frontend-domain.com
 PUBLIC_API_BASE_URL=https://your-api-domain.com
+PDF_OPTIMIZE_MODE=lossless
+PDF_OPTIMIZE_STRICT=false
 ```
 
 ### 2. Build and start

@@ -28,6 +28,8 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       ADMIN_TOKEN: ${ADMIN_TOKEN:-change-me}
       PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-}
+      PDF_OPTIMIZE_MODE: ${PDF_OPTIMIZE_MODE:-lossless}
+      PDF_OPTIMIZE_STRICT: ${PDF_OPTIMIZE_STRICT:-false}
     volumes:
       - lesson_data:/data
     networks:

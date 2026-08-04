@@ -7,6 +7,7 @@
     "dev": "vite",
     "server": "node server/index.js",
     "start": "node server/index.js",
+    "pdf:backfill": "node server/backfillPdfOptimization.js",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"

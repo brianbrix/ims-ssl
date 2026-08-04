@@ -14,7 +14,7 @@ FROM node:22-alpine AS runtime
 
 WORKDIR /app
 
-RUN apk add --no-cache bash curl python3 make g++
+RUN apk add --no-cache bash curl python3 make g++ qpdf ghostscript
 
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0

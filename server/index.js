@@ -7,6 +7,7 @@ import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getAllLessons, getLessonById, insertLesson, deleteLessonById } from "./db.js";
+import { optimizePdfInPlace } from "./pdfOptimize.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STORAGE_ROOT = process.env.STORAGE_ROOT ? path.resolve(process.env.STORAGE_ROOT) : "";
@@ -88,7 +89,35 @@ app.post("/api/lessons", requireAdmin, upload.single("file"), async (req, res) =
   const year = yearValue ? Number(yearValue) : null;
 
   if (yearValue && Number.isNaN(year)) {
+    await unlink(req.file.path).catch(() => {});
     return res.status(400).json({ error: "Year must be a number." });
+  }
+
+  let optimization;
+  try {
+    optimization = await optimizePdfInPlace(req.file.path);
+  } catch (error) {
+    await unlink(req.file.path).catch(() => {});
+    throw error;
+  }
+  if (optimization.warnings.length > 0) {
+    console.warn("[pdf-optimize] warnings", {
+      file: req.file.filename,
+      mode: optimization.mode,
+      warnings: optimization.warnings,
+    });
+  }
+
+  if (optimization.optimized) {
+    console.log("[pdf-optimize] optimized", {
+      file: req.file.filename,
+      mode: optimization.mode,
+      operations: optimization.operations,
+      beforeBytes: optimization.beforeBytes,
+      afterBytes: optimization.afterBytes,
+      savingsBytes: optimization.savingsBytes,
+      savingsPercent: Number(optimization.savingsPercent.toFixed(2)),
+    });
   }
 
   const lesson = {
@@ -146,6 +175,7 @@ if (existsSync(FRONTEND_DIST_DIR)) {
 
 app.listen(PORT, HOST, () => {
   console.log(`Sabbath School Reader listening on http://${HOST}:${PORT}`);
+  console.log(`PDF optimization mode: ${process.env.PDF_OPTIMIZE_MODE || "lossless"}`);
   if (PUBLIC_API_BASE_URL) {
     console.log(`Using public API base URL ${PUBLIC_API_BASE_URL}`);
   }
