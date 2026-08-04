@@ -671,7 +671,12 @@
   }
 
   .viewer-bottom-nav {
-    padding: 0.45rem 0.5rem 0.65rem;
+    position: sticky;
+    bottom: 0;
+    z-index: 6;
+    padding: 0.45rem 0.5rem calc(0.65rem + env(safe-area-inset-bottom));
+    background: rgba(244, 246, 250, 0.96);
+    backdrop-filter: blur(4px);
   }
 
   .floating-page-nav {

@@ -67,3 +67,7 @@ declare module "pdfjs-dist" {
 
   export function getDocument(src: { url: string }): PDFDocumentLoadingTask;
 }
+
+declare module "pdfjs-dist/legacy/build/pdf.mjs" {
+  export * from "pdfjs-dist";
+}
