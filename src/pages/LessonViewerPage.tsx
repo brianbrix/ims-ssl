@@ -38,8 +38,7 @@ export function LessonViewerPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobileControlsOpen, setIsMobileControlsOpen] = useState(true);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
-  const [flipOverlay, setFlipOverlay] = useState<{
-    image: string;
+  const [pageTransition, setPageTransition] = useState<{
     direction: "forward" | "backward";
     token: number;
   } | null>(null);
@@ -48,27 +47,45 @@ export function LessonViewerPage() {
   const [error, setError] = useState<string | null>(null);
   const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
   const pageContainerRef = useRef<HTMLDivElement | null>(null);
-  const flipTimeoutRef = useRef<number | null>(null);
+  const pageTransitionTimeoutRef = useRef<number | null>(null);
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      setError("Lesson id is missing.");
+      setIsLoading(false);
+      return;
+    }
     let cancelled = false;
     setIsLoading(true);
     setError(null);
     setPdf(null);
+    setLesson(null);
     setToc([]);
 
     (async () => {
-      try {
-        const lessonData = await getLesson(id);
-        if (cancelled) return;
-        setLesson(lessonData);
+      loadingTaskRef.current?.destroy();
+      const loadingTask = pdfjsLib.getDocument({
+        url: lessonFileUrl(id),
+        disableAutoFetch: true,
+        disableStream: false,
+        rangeChunkSize: 262144,
+      });
+      loadingTaskRef.current = loadingTask;
 
-        loadingTaskRef.current?.destroy();
-        const loadingTask = pdfjsLib.getDocument({ url: lessonFileUrl(id) });
-        loadingTaskRef.current = loadingTask;
+      void getLesson(id)
+        .then((lessonData) => {
+          if (!cancelled) setLesson(lessonData);
+        })
+        .catch(() => {
+          // Metadata failures should not block PDF reading.
+          if (!cancelled) {
+            setLesson(null);
+          }
+        });
+
+      try {
         const doc = await loadingTask.promise;
         if (cancelled) return;
 
@@ -95,9 +112,9 @@ export function LessonViewerPage() {
     return () => {
       cancelled = true;
       loadingTaskRef.current?.destroy();
-      if (flipTimeoutRef.current !== null) {
-        window.clearTimeout(flipTimeoutRef.current);
-        flipTimeoutRef.current = null;
+      if (pageTransitionTimeoutRef.current !== null) {
+        window.clearTimeout(pageTransitionTimeoutRef.current);
+        pageTransitionTimeoutRef.current = null;
       }
     };
   }, [id]);
@@ -164,28 +181,18 @@ export function LessonViewerPage() {
     const nextPage = Math.min(Math.max(pageNumber, 1), pdf.numPages);
     if (nextPage === currentPage) return;
 
-    const canvas = pageContainerRef.current?.querySelector(".pdf-page-canvas") as
-      | HTMLCanvasElement
-      | null;
-    if (canvas && canvas.width > 0 && canvas.height > 0) {
-      try {
-        const token = Date.now();
-        setFlipOverlay({
-          image: canvas.toDataURL("image/jpeg", 0.9),
-          direction: nextPage > currentPage ? "forward" : "backward",
-          token,
-        });
-        if (flipTimeoutRef.current !== null) {
-          window.clearTimeout(flipTimeoutRef.current);
-        }
-        flipTimeoutRef.current = window.setTimeout(() => {
-          setFlipOverlay((current) => (current?.token === token ? null : current));
-          flipTimeoutRef.current = null;
-        }, 380);
-      } catch {
-        setFlipOverlay(null);
-      }
+    const token = Date.now();
+    setPageTransition({
+      direction: nextPage > currentPage ? "forward" : "backward",
+      token,
+    });
+    if (pageTransitionTimeoutRef.current !== null) {
+      window.clearTimeout(pageTransitionTimeoutRef.current);
     }
+    pageTransitionTimeoutRef.current = window.setTimeout(() => {
+      setPageTransition((current) => (current?.token === token ? null : current));
+      pageTransitionTimeoutRef.current = null;
+    }, 220);
 
     setCurrentPage(nextPage);
   }
@@ -259,7 +266,7 @@ export function LessonViewerPage() {
 
   if (isLoading) return <p className="page-message">Loading lesson…</p>;
   if (error) return <p className="page-message error">{error}</p>;
-  if (!pdf || !lesson) return null;
+  if (!pdf) return null;
 
   function onPageTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     if (typeof window === "undefined" || window.innerWidth > 980) return;
@@ -304,8 +311,8 @@ export function LessonViewerPage() {
     <div className={`viewer-layout ${isSidebarOpen ? "sidebar-open" : ""}`}>
       <aside className="sidebar" id="lesson-outline">
         <div className="lesson-meta">
-          <h2>{lesson.title}</h2>
-          {lesson.period && <p className="library-period">{lesson.period}</p>}
+          <h2>{lesson?.title || "Sabbath School Lesson"}</h2>
+          {lesson?.period && <p className="library-period">{lesson.period}</p>}
           <Link to="/">← Back to library</Link>
         </div>
         <Suspense fallback={<p className="toc-empty">Loading table of contents…</p>}>
@@ -422,22 +429,16 @@ export function LessonViewerPage() {
           onTouchEnd={onPageTouchEnd}
         >
           <div className="page-stack">
-            <Suspense fallback={<p className="page-message">Rendering page…</p>}>
-              <PdfPage pdf={pdf} pageNumber={currentPage} scale={scale} />
-            </Suspense>
-            {flipOverlay && (
-              <div
-                key={flipOverlay.token}
-                className={`page-flip-overlay page-flip-${flipOverlay.direction}`}
-                onAnimationEnd={() => {
-                  setFlipOverlay((current) =>
-                    current?.token === flipOverlay.token ? null : current
-                  );
-                }}
-              >
-                <img src={flipOverlay.image} alt="" aria-hidden="true" />
-              </div>
-            )}
+            <div
+              key={pageTransition?.token ?? 0}
+              className={`page-content ${
+                pageTransition ? `page-enter-${pageTransition.direction}` : ""
+              }`}
+            >
+              <Suspense fallback={<p className="page-message">Rendering page…</p>}>
+                <PdfPage pdf={pdf} pageNumber={currentPage} scale={scale} />
+              </Suspense>
+            </div>
           </div>
         </div>
 
