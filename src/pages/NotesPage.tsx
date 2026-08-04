@@ -31,9 +31,10 @@ function upsertSorted(notes: ReaderNote[], note: ReaderNote): ReaderNote[] {
 }
 
 function getLessonLabel(lesson: Lesson): string {
+  const quarterYear = [lesson.quarter, lesson.year].filter(Boolean).join(" ").trim();
+  if (quarterYear) return quarterYear;
   if (lesson.period?.trim()) return lesson.period.trim();
-  const fallback = [lesson.year, lesson.quarter].filter(Boolean).join(" ").trim();
-  return fallback || lesson.title;
+  return lesson.title;
 }
 
 export function NotesPage() {
